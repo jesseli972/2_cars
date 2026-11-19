@@ -11,7 +11,18 @@ Tap the left half of the screen to move the red car and the right half to move t
 - **Hard:** catch every circle and dodge every square. Missing a circle ends the run.
 - **Easy:** squares only. You score a point for each one you dodge.
 
-The game speeds up and spawns obstacles closer together as your score climbs.
+The game speeds up and spawns obstacles closer together as your score climbs. You can feel the speed through streaking speed lines and a road that warms in colour. Dodging a square at the last moment flashes a **Close!** near-miss.
+
+## Themes
+
+Themes unlock from your best score in either mode and can be picked on the menu:
+
+| Theme | Unlocks at |
+|---|---|
+| Night City | Start |
+| Synthwave | 50 |
+| Snow | 100 |
+| Deep Space | 200 |
 
 On a computer: `F` / `←` moves the left car, `J` / `→` moves the right car, and `Space` pauses.
 
