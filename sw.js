@@ -1,5 +1,5 @@
 // Network-first: always get the latest version when online, fall back to the cached copy offline.
-const C = '2cars-v11';
+const C = '2cars-v12';
 const F = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
@@ -13,7 +13,8 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
+  // only the game's own files; leaderboard requests always go straight to the network
+  if (e.request.method !== 'GET' || new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith(
     fetch(e.request)
       .then(res => {

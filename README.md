@@ -35,6 +35,14 @@ On a computer: `F` / `←` moves the left car, `J` / `→` moves the right car, 
 
 A lane switch starts on touch-down, not on release. It uses a short ease-out, so most of the movement happens in the first few frames. Tapping again mid-switch reverses the car right away from wherever it is. You can pick the switch speed in the menu: Instant 45 ms, Snappy 85 ms (default), Smooth 140 ms or Classic 230 ms.
 
+## Leaderboard
+
+Scores are posted to a Supabase database. Each phone gets a random player ID, and you choose a name the first time you post. The board shows each player's best score, with separate Easy and Hard boards. Runs that can't post right away (offline, or no name yet) wait on the phone and send later.
+
+**One-time setup:** open the Supabase project → **SQL Editor** → **New query**, paste in [`supabase/setup.sql`](supabase/setup.sql), and click **Run**. That creates the `scores` table, which can only be added to and read, never edited or deleted. It also checks that every score is possible for how long the run lasted, and creates a `leaderboard` view.
+
+The key in `index.html` is Supabase's *publishable* key, which is designed to be public. Never put the *secret* key in this repo.
+
 ## Install on your phone
 
 Open the Play link, then:
