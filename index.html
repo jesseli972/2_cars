@@ -53,7 +53,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
 .chip small{display:block;color:var(--muted);font-weight:600;font-size:11px}
 .chip.on{background:var(--ink);color:#141834}.chip.on small{color:#4a5080}
 .row{display:flex;gap:6px;margin-top:6px}
-.tog{flex:1;min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--muted);font:600 14px "Chakra Petch",system-ui,sans-serif;cursor:pointer}
+.tog{flex:1;min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--muted);font:600 13px "Chakra Petch",system-ui,sans-serif;cursor:pointer}
 .tog.on{color:var(--ink);border-color:rgba(255,255,255,.4)}
 .how{display:flex;justify-content:center;gap:18px;color:var(--muted);font-size:13px;margin:4px 0 0}
 .how span{display:flex;align-items:center;gap:6px}
@@ -85,7 +85,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
     <div class="chips" id="themes"></div>
     <div class="lbl">Lane switch speed</div>
     <div class="chips" id="speeds"></div>
-    <div class="row"><button class="tog" id="sndBtn">Sound</button><button class="tog" id="vibBtn">Vibration</button></div>
+    <div class="row"><button class="tog" id="sndBtn">Sound</button><button class="tog" id="musBtn">Music</button><button class="tog" id="vibBtn">Vibrate</button></div>
     <p class="best"><span id="modeName">Hard</span> best <b id="bestMenu">0</b></p>
     <button class="btn" id="playBtn">Play</button>
     <p class="ver" id="ver"></p>
@@ -124,10 +124,10 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230}];
-const VERSION='1.5';
+const VERSION='1.6';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
-let cfg={theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
+let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
 const bestKey=()=>cfg.mode==='easy'?'best_easy':'best';
 const easy=()=>cfg.mode==='easy';
 let best=store.get(bestKey(),0);
@@ -180,7 +180,52 @@ function spawn(s){
 
 // ---- audio / haptics ----
 let ac=null;
-function audio(){if(!cfg.sound)return null;try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){ac=null}return ac}
+function ctx(){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){ac=null}return ac}
+function audio(){return cfg.sound?ctx():null}
+
+// ---- music: an original synthwave loop composed in code ----
+// A 4-bar loop per theme (chords, arpeggio pattern, drums). The menu plays a soft pad + arp;
+// a run adds bass and drums; past mid-speed the hats double up and the tempo climbs with the game.
+const SONGS={
+  night:{bpm:108,prog:[[45,0],[41,1],[48,1],[43,1]],arp:[0,1,2,3,2,1,0,1],aw:'triangle',ao:24,kick:'1000100010001000',pad:0,oct:0},
+  synth:{bpm:112,prog:[[50,0],[46,1],[41,1],[48,1]],arp:[0,2,3,2,1,2,3,4],aw:'sawtooth',ao:24,kick:'1000100010001000',pad:1,oct:1},
+  snow: {bpm:100,prog:[[40,0],[48,1],[43,1],[38,1]],arp:[3,2,1,0,1,2,4,2],aw:'sine',ao:36,kick:'1000000010100000',pad:1,oct:0},
+  space:{bpm:96, prog:[[48,0],[44,1],[51,1],[46,1]],arp:[0,2,1,3,2,4,3,1],aw:'triangle',ao:24,kick:'1000000000100000',pad:1,oct:0}};
+const mus={on:false,step:0,next:0,timer:null,out:null,nb:null};
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+function musOut(a){if(mus.out)return mus.out;const comp=a.createDynamicsCompressor();comp.threshold.value=-18;comp.ratio.value=4;
+  mus.out=a.createGain();mus.out.gain.value=0;mus.out.connect(comp).connect(a.destination);
+  const b=a.createBuffer(1,a.sampleRate*.4,a.sampleRate),d=b.getChannelData(0);for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;mus.nb=b;return mus.out}
+function env(a,t,peak,att,dec){const g=a.createGain();g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+att);g.gain.exponentialRampToValueAtTime(.0001,t+att+dec);g.connect(mus.out);return g}
+function tone(a,t,f,type,peak,att,dec,cut){const o=a.createOscillator();o.type=type;o.frequency.value=f;let n=o;
+  if(cut){const fl=a.createBiquadFilter();fl.type='lowpass';fl.frequency.value=cut;o.connect(fl);n=fl}n.connect(env(a,t,peak,att,dec));o.start(t);o.stop(t+att+dec+.05)}
+function noise(a,t,type,freq,peak,dec){const src=a.createBufferSource();src.buffer=mus.nb;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=freq;
+  src.connect(fl).connect(env(a,t,peak,.002,dec));src.start(t);src.stop(t+dec+.05)}
+function kick(a,t){const o=a.createOscillator();o.type='sine';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(42,t+.12);o.connect(env(a,t,.9,.003,.24));o.start(t);o.stop(t+.3)}
+function songBpm(){const sg=SONGS[th().id];return sg.bpm*(state==='play'?1+.28*heat():1)}
+function schedStep(a,st,t){
+  const sg=SONGS[th().id],s=st%16,[root,maj]=sg.prog[Math.floor(st/16)%4],tri=[root,root+(maj?4:3),root+7,root+12,root+(maj?16:15)];
+  const lvl=state==='play'?(heat()>.45?2:1):0,sixteenth=60/songBpm()/4;
+  if(s===0&&(sg.pad||lvl===0))for(const m of tri.slice(0,3))for(const det of [-6,6]){const o=a.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m+12);o.detune.value=det;
+    const fl=a.createBiquadFilter();fl.type='lowpass';fl.frequency.value=800;const g=a.createGain(),len=sixteenth*16;
+    g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.022,t+len*.25);g.gain.linearRampToValueAtTime(.0001,t+len);o.connect(fl).connect(g).connect(mus.out);o.start(t);o.stop(t+len+.05)}
+  if(lvl>0||s%2===0)tone(a,t,mtof(tri[sg.arp[s%8]]+sg.ao+(lvl===2&&s>=8?12:0)),sg.aw,lvl?.05:.035,.006,sixteenth*1.6,sg.aw==='sawtooth'?2200+2600*heat():0);
+  if(lvl===0)return;
+  if(s%2===0)tone(a,t,mtof(root-12+(sg.oct&&s%4===2?12:0)),'sawtooth',.13,.008,sixteenth*1.7,520);
+  if(sg.kick[s]==='1')kick(a,t);
+  if(s===4||s===12){noise(a,t,'bandpass',1800,.32,.13);tone(a,t,190,'triangle',.12,.002,.06)}
+  if(s%4===2||(lvl===2&&s%2===1))noise(a,t,'highpass',7500,s%4===2?.11:.06,.035);
+}
+function musTick(){const a=ac;if(!a||!mus.on)return;while(mus.next<a.currentTime+.15){schedStep(a,mus.step,mus.next);mus.next+=60/songBpm()/4;mus.step=(mus.step+1)%64}}
+function musRestart(){if(!ac||!mus.on)return;mus.step=0;mus.next=ac.currentTime+.06}
+function updateMusic(){
+  const a=ac;if(!a)return;musOut(a);
+  const want=cfg.music&&state!=='paused'&&!document.hidden;
+  if(want&&!mus.on){mus.on=true;mus.step=0;mus.next=a.currentTime+.06;mus.timer=setInterval(musTick,25)}
+  if(!want&&mus.on){mus.on=false;clearInterval(mus.timer)}
+  const vol=!want?0:state==='play'?.55:state==='dying'||state==='over'?.25:.4;
+  if(Math.abs(mus.out.gain.value-vol)>.01)mus.out.gain.setTargetAtTime(vol,a.currentTime,.25);
+}
 function beep(f,dur,type,vol,slide){const a=audio();if(!a)return;try{const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);
   if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur)}catch(e){}}
 function tick(s){beep(s?520:440,.05,'triangle',.05)}
@@ -196,7 +241,7 @@ function frame(now){
   if(state==='play')update(dt);else if(state==='dying'){overT+=dt;updateParts(dt);shake=Math.max(0,shake-dt*2.5);if(overT>.7)showOver()}
   else if(state==='menu'){dash+=dt*roadV;idleCars(dt)}
   updateFx(dt);
-  draw();requestAnimationFrame(frame);
+  updateMusic();draw();requestAnimationFrame(frame);
 }
 function idleCars(dt){for(const c of cars)moveCar(c,dt)}
 function moveCar(c,dt){
@@ -370,7 +415,7 @@ document.addEventListener('keydown',e=>{
   else if(k===' '||k==='escape'||k==='p'){e.preventDefault();if(state==='play')pause();else if(state==='paused')resume();else if(state==='menu'||state==='over')start()}
   else if(k==='enter'&&(state==='menu'||state==='over'))start();
 });
-function start(){audio();$('menu').classList.remove('on');$('over').classList.remove('on');$('paused').classList.remove('on');
+function start(){ctx();musRestart();$('menu').classList.remove('on');$('over').classList.remove('on');$('paused').classList.remove('on');
   reset();state='play';$('score').hidden=false;$('pauseBtn').style.display='flex';last=performance.now()}
 function pause(){if(state!=='play')return;state='paused';$('pScore').textContent=score;$('paused').classList.add('on')}
 function resume(){$('paused').classList.remove('on');state='play';last=performance.now()}
@@ -379,14 +424,17 @@ $('playBtn').onclick=start;$('againBtn').onclick=start;$('resumeBtn').onclick=re
 $('pauseBtn').addEventListener('pointerdown',e=>{e.stopPropagation();pause()});
 // tap anywhere on the game-over screen (after a short guard so a panicked tap doesn't restart)
 $('over').addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;if(performance.now()-overShownAt>500)start()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();try{ac&&ac.suspend()}catch(e){}}});
+// browsers only allow sound after a tap, so the menu music starts on your first touch
+document.addEventListener('pointerdown',()=>{if(cfg.music||cfg.sound)ctx()});
 window.addEventListener('blur',pause);
 
 // ---- settings UI ----
 function renderSettings(){
   $('speeds').innerHTML=SPEEDS.map((s,i)=>`<button class="chip${i===cfg.speed?' on':''}" data-i="${i}">${s.n}<small>${s.ms} ms</small></button>`).join('');
   $('sndBtn').classList.toggle('on',cfg.sound);$('sndBtn').textContent='Sound '+(cfg.sound?'on':'off');
-  $('vibBtn').classList.toggle('on',cfg.vib);$('vibBtn').textContent='Vibration '+(cfg.vib?'on':'off');
+  $('vibBtn').classList.toggle('on',cfg.vib);$('vibBtn').textContent='Vibrate '+(cfg.vib?'on':'off');
+  $('musBtn').classList.toggle('on',cfg.music);$('musBtn').textContent='Music '+(cfg.music?'on':'off');
   $('bestMenu').textContent=best;
   const tb=topBest();
   $('themes').innerHTML=THEMES.map(t=>{const ok=t.at<=tb;return `<button class="chip${t.id===theme.id?' on':''}" data-t="${t.id}"${ok?'':' disabled'}>${t.n}<small>${ok?'&nbsp;':'Best '+t.at}</small></button>`}).join('');
@@ -400,6 +448,7 @@ $('speeds').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b
   // preview the feel on the menu screen
   state='play';switchLane(0);switchLane(1);state='menu'});
 $('sndBtn').onclick=()=>{cfg.sound=!cfg.sound;store.set('sound',cfg.sound);renderSettings();if(cfg.sound)tick(0)};
+$('musBtn').onclick=()=>{cfg.music=!cfg.music;store.set('music',cfg.music);renderSettings();if(cfg.music)ctx()};
 $('vibBtn').onclick=()=>{cfg.vib=!cfg.vib;store.set('vib',cfg.vib);renderSettings();buzz(30)};
 
 window.addEventListener('resize',resize);

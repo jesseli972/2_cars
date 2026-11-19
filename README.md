@@ -13,6 +13,10 @@ Tap the left half of the screen to move the red car and the right half to move t
 
 The game speeds up and spawns obstacles closer together as your score climbs. You can feel the speed through streaking speed lines and a road that warms in colour. Dodging a square at the last moment flashes a **Close!** near-miss.
 
+## Music
+
+Each theme has its own original synthwave loop, generated in code with the Web Audio API, so there are no audio files and no licensing to worry about. The menu plays a soft pad and arpeggio. A run adds bass and drums, the hi-hats double up past mid-speed, and the tempo climbs with the game. Music can be turned off on the menu, separately from sound effects.
+
 ## Themes
 
 Themes unlock from your best score in either mode and can be picked on the menu:
