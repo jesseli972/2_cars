@@ -125,7 +125,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230}];
-const VERSION='2.0';
+const VERSION='2.1';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -198,7 +198,7 @@ function audio(){return cfg.sound?ctx():null}
 const SONGS={
   night:{bpm:108,prog:[[45,0],[41,1],[48,1],[43,1]],arp:[0,1,2,3,2,1,0,1],aw:'triangle',ao:24,kick:'1000100010001000',pad:0,oct:0},
   synth:{bpm:112,prog:[[50,0],[46,1],[41,1],[48,1]],arp:[0,2,3,2,1,2,3,4],aw:'sawtooth',ao:24,kick:'1000100010001000',pad:1,oct:1},
-  snow: {bpm:100,prog:[[40,0],[48,1],[43,1],[38,1]],arp:[3,2,1,0,1,2,4,2],aw:'sine',ao:36,kick:'1000000010100000',pad:1,oct:0},
+  snow: {bpm:104,prog:[[43,1],[40,0],[36,1],[38,1]],arp:[3,4,3,2,1,2,3,0],aw:'bell',ao:36,kick:'0000000000000000',pad:1,oct:0,xmas:1},
   ausar:{bpm:96, prog:[[43,0],[39,1],[46,1],[41,1]],arp:[0,0,2,0,3,0,2,1],aw:'square',ao:24,kick:'1000001010000010',pad:0,oct:1},
   space:{bpm:96, prog:[[48,0],[44,1],[51,1],[46,1]],arp:[0,2,1,3,2,4,3,1],aw:'triangle',ao:24,kick:'1000000000100000',pad:1,oct:0}};
 const mus={on:false,step:0,next:0,timer:null,out:null,nb:null};
@@ -212,6 +212,8 @@ function tone(a,t,f,type,peak,att,dec,cut){const o=a.createOscillator();o.type=t
 function noise(a,t,type,freq,peak,dec){const src=a.createBufferSource();src.buffer=mus.nb;const fl=a.createBiquadFilter();fl.type=type;fl.frequency.value=freq;
   src.connect(fl).connect(env(a,t,peak,.002,dec));src.start(t);src.stop(t+dec+.05)}
 function kick(a,t){const o=a.createOscillator();o.type='sine';o.frequency.setValueAtTime(150,t);o.frequency.exponentialRampToValueAtTime(42,t+.12);o.connect(env(a,t,.9,.003,.24));o.start(t);o.stop(t+.3)}
+function bell(a,t,f,peak){for(const [m,v,d] of [[1,1,1.1],[2.76,.35,.45],[5.4,.12,.2]])tone(a,t,f*m,'sine',peak*v,.003,d)}
+function sleigh(a,t,peak){for(let i=0;i<3;i++)noise(a,t+i*.012,'bandpass',9000+i*900,peak*(1-i*.25),.05)}
 function songBpm(){const sg=SONGS[th().id];return sg.bpm*(state==='play'?1+.28*heat():1)}
 function schedStep(a,st,t){
   const sg=SONGS[th().id],s=st%16,[root,maj]=sg.prog[Math.floor(st/16)%4],tri=[root,root+(maj?4:3),root+7,root+12,root+(maj?16:15)];
@@ -219,10 +221,14 @@ function schedStep(a,st,t){
   if(s===0&&(sg.pad||lvl===0))for(const m of tri.slice(0,3))for(const det of [-6,6]){const o=a.createOscillator();o.type='sawtooth';o.frequency.value=mtof(m+12);o.detune.value=det;
     const fl=a.createBiquadFilter();fl.type='lowpass';fl.frequency.value=800;const g=a.createGain(),len=sixteenth*16;
     g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(lvl?.03:.05,t+len*.25);g.gain.linearRampToValueAtTime(.0001,t+len);o.connect(fl).connect(g).connect(mus.out);o.start(t);o.stop(t+len+.05)}
-  if(lvl>0||s%2===0)tone(a,t,mtof(tri[sg.arp[s%8]]+sg.ao+(lvl===2&&s>=8?12:0)),sg.aw,lvl?.07:.09,.006,sixteenth*1.6,sg.aw==='sawtooth'?2200+2600*heat():0);
+  if(sg.xmas){if(lvl>0||s%2===0)bell(a,t,mtof(tri[sg.arp[s%8]]+sg.ao+(lvl===2&&s>=8?12:0)),lvl?.06:.07);
+    if(s%2===0)sleigh(a,t,lvl===0?.05:s%4===0?.16:.1);if(lvl===2&&s%2===1)sleigh(a,t,.06)}
+  else if(lvl>0||s%2===0)tone(a,t,mtof(tri[sg.arp[s%8]]+sg.ao+(lvl===2&&s>=8?12:0)),sg.aw,lvl?.07:.09,.006,sixteenth*1.6,sg.aw==='sawtooth'?2200+2600*heat():0);
   if(lvl===0)return;
-  if(s%2===0)tone(a,t,mtof(root-12+(sg.oct&&s%4===2?12:0)),'sawtooth',.13,.008,sixteenth*1.7,520);
+  if(sg.xmas){if(s%4===0)tone(a,t,mtof(root),'sine',.04,.02,sixteenth*3.5)}
+  else if(s%2===0)tone(a,t,mtof(root-12+(sg.oct&&s%4===2?12:0)),'sawtooth',.13,.008,sixteenth*1.7,520);
   if(sg.kick[s]==='1')kick(a,t);
+  if(sg.xmas){if(s===4||s===12)noise(a,t,'bandpass',3000,.07,.09);return}
   if(s===4||s===12){noise(a,t,'bandpass',1800,.32,.13);tone(a,t,190,'triangle',.12,.002,.06)}
   if(s%4===2||(lvl===2&&s%2===1))noise(a,t,'highpass',7500,s%4===2?.11:.06,.035);
 }
