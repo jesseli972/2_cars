@@ -59,6 +59,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
 .how span{display:flex;align-items:center;gap:6px}
 .chip:disabled{opacity:.45;cursor:default}
 .unlock{margin:-8px 0 16px;font-weight:700;color:#ffd166}
+.ver{color:var(--muted);font-size:12px;margin:12px 0 0;opacity:.7}
 .tiny{color:var(--muted);font-size:12px;margin:14px 0 0}
 @media (pointer:coarse){.tiny{display:none}}
 @media (max-height:720px){.card{padding:16px 16px 14px}h1{font-size:34px}.sub{margin:4px 0 10px}.lbl{margin:10px 2px 6px}.best{margin:4px 0 10px}.chip{min-height:40px}.tog{min-height:40px}.btn{min-height:48px}}
@@ -87,6 +88,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
     <div class="row"><button class="tog" id="sndBtn">Sound</button><button class="tog" id="vibBtn">Vibration</button></div>
     <p class="best"><span id="modeName">Hard</span> best <b id="bestMenu">0</b></p>
     <button class="btn" id="playBtn">Play</button>
+    <p class="ver" id="ver"></p>
     <p class="tiny">Keyboard: F / ← left car · J / → right car · Space pause</p>
   </div></div>
 
@@ -122,6 +124,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230}];
+const VERSION='1.5';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -238,7 +241,7 @@ function showOver(){
   const fresh=THEMES.filter(t=>t.at>before&&t.at<=topBest());
   $('unlockMsg').hidden=!fresh.length;if(fresh.length)$('unlockMsg').textContent='New theme unlocked: '+fresh.map(t=>t.n).join(', ');
   $('final').textContent=score;$('bestOver').textContent=best;$('bestMenu').textContent=best;
-  $('over').classList.add('on');$('score').hidden=true;overShownAt=performance.now();
+  $('over').classList.add('on');$('score').hidden=true;overShownAt=performance.now();if(window.__maybeReload)setTimeout(window.__maybeReload,1500);
 }
 let overShownAt=0;
 
@@ -371,7 +374,7 @@ function start(){audio();$('menu').classList.remove('on');$('over').classList.re
   reset();state='play';$('score').hidden=false;$('pauseBtn').style.display='flex';last=performance.now()}
 function pause(){if(state!=='play')return;state='paused';$('pScore').textContent=score;$('paused').classList.add('on')}
 function resume(){$('paused').classList.remove('on');state='play';last=performance.now()}
-function toMenu(){renderSettings();state='menu';objs=[];parts=[];$('over').classList.remove('on');$('paused').classList.remove('on');$('menu').classList.add('on');$('score').hidden=true;$('pauseBtn').style.display='none';reset()}
+function toMenu(){if(window.__maybeReload)window.__maybeReload();renderSettings();state='menu';objs=[];parts=[];$('over').classList.remove('on');$('paused').classList.remove('on');$('menu').classList.add('on');$('score').hidden=true;$('pauseBtn').style.display='none';reset()}
 $('playBtn').onclick=start;$('againBtn').onclick=start;$('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('menuBtn').onclick=toMenu;
 $('pauseBtn').addEventListener('pointerdown',e=>{e.stopPropagation();pause()});
 // tap anywhere on the game-over screen (after a short guard so a panicked tap doesn't restart)
@@ -401,11 +404,22 @@ $('vibBtn').onclick=()=>{cfg.vib=!cfg.vib;store.set('vib',cfg.vib);renderSetting
 
 window.addEventListener('resize',resize);
 if(window.ResizeObserver){const ro=new ResizeObserver(resize);ro.observe(stage)}
-resize();reset();applyTheme();renderSettings();
+resize();reset();applyTheme();renderSettings();$('ver').textContent='Version '+VERSION;
 requestAnimationFrame(t=>{last=t;frame(t)});
 
 // offline install when hosted on your own site (ignored inside the claude.ai viewer)
-try{if('serviceWorker' in navigator&&location.protocol==='https:'&&window.self===window.top)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+// When a new version is pushed: check for it every time the app comes to the front,
+// and swap it in automatically (never in the middle of a run).
+let pendingReload=false;
+window.__maybeReload=()=>{if(pendingReload&&state!=='play'&&state!=='dying'){pendingReload=false;location.reload()}};
+try{if('serviceWorker' in navigator&&location.protocol==='https:'&&window.self===window.top){
+  const hadController=!!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>{
+    reg.update().catch(()=>{});
+    document.addEventListener('visibilitychange',()=>{if(!document.hidden)reg.update().catch(()=>{})});
+  }).catch(()=>{});
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(!hadController)return;pendingReload=true;window.__maybeReload()});
+}}catch(e){}
 }
 </script>
 </body>
