@@ -1,5 +1,5 @@
 // Network-first: always get the latest version when online, fall back to the cached copy offline.
-const C = '2cars-v7';
+const C = '2cars-v8';
 const F = ['./', 'index.html', 'manifest.webmanifest', 'icon-180.png', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

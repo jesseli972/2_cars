@@ -24,7 +24,7 @@ Themes unlock from your best score in either mode and can be picked on the menu:
 | Theme | Unlocks at |
 |---|---|
 | Night City | Start |
-| Ausar #9 | Start (hardwood court, #9 jersey cars, basketballs, arena beat) |
+| Ausar #9 | Start (hardwood court, jumbotrons, LED ribbons, crowd flashes, #9 jersey cars, basketballs, arena beat) |
 | Synthwave | 50 |
 | Snow | 100 |
 | Deep Space | 200 |
