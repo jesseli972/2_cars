@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#161a3a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="2 Cars">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>2 Cars</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@600;700&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: arcade at night, quick and clean
+IDEA: a two-lane highway seen from above, neon paint on dark asphalt
+PICTURE: the game canvas itself, full screen
+COLOUR and TYPE: night asphalt #161a3a, coral car #ff5a64, aqua car #2fd4e0, white HUD; Chakra Petch
+LAYOUT: canvas fills the phone; menus float over the road as one centered card
+*/
+:root{--bg:#0d1029;--road:#1b2048;--ink:#f4f6ff;--muted:#a9b0d8;--red:#ff5a64;--blue:#2fd4e0;color-scheme:dark}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overflow:hidden;overscroll-behavior:none;
+  font:16px/1.4 "Chakra Petch",system-ui,sans-serif;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+#wrap{position:fixed;inset:0;display:flex;justify-content:center;background:radial-gradient(120% 80% at 50% 0%,#1a1f4a,#0b0d22)}
+#stage{position:relative;height:100%;width:100%;max-width:calc(100dvh * .62)}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block}
+#hud{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top) + 14px) 16px 0;display:flex;justify-content:center;pointer-events:none}
+#score{font-size:56px;font-weight:700;line-height:1;text-shadow:0 3px 0 rgba(0,0,0,.35)}
+#pauseBtn{position:absolute;right:max(10px,env(safe-area-inset-right));top:calc(env(safe-area-inset-top) + 10px);width:44px;height:44px;border:0;border-radius:12px;
+  background:rgba(255,255,255,.08);color:var(--ink);pointer-events:auto;display:none;align-items:center;justify-content:center;cursor:pointer}
+#pauseBtn svg{width:18px;height:18px}
+.ov{position:absolute;inset:0;display:none;align-items:center;justify-content:center;padding:24px;background:rgba(8,10,28,.55);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+.ov.on{display:flex}
+.card{width:min(340px,100%);background:rgba(22,26,60,.94);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:24px 20px 20px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.45)}
+h1{margin:0;font-size:44px;line-height:1.05;letter-spacing:.5px}
+h1 .r{color:var(--red)}h1 .b{color:var(--blue)}
+h2{margin:0 0 4px;font-size:32px;line-height:1.05}
+.sub{color:var(--muted);font-size:14px;margin:8px 0 18px}
+.big{font-size:64px;font-weight:700;line-height:1}
+.best{color:var(--muted);font-size:15px;margin:6px 0 18px}
+.best b{color:var(--ink)}
+.btn{display:block;width:100%;min-height:52px;border:0;border-radius:14px;font:700 19px "Chakra Petch",system-ui,sans-serif;color:#10132d;
+  background:linear-gradient(90deg,var(--red),#ff8a6b 50%,var(--blue) 50.1%,#7fe9f0);cursor:pointer}
+.btn:active{transform:translateY(1px)}
+.btn:focus-visible,.chip:focus-visible,.tog:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.lbl{text-align:left;font-size:13px;color:var(--muted);margin:18px 2px 8px}
+.chips{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}.chips.modes{grid-template-columns:repeat(2,minmax(0,1fr))}
+.chip{min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--ink);font:600 13px "Chakra Petch",system-ui,sans-serif;cursor:pointer;line-height:1.1;padding:4px 2px}
+.chip small{display:block;color:var(--muted);font-weight:600;font-size:11px}
+.chip.on{background:var(--ink);color:#141834}.chip.on small{color:#4a5080}
+.row{display:flex;gap:6px;margin-top:6px}
+.tog{flex:1;min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.12);background:transparent;color:var(--muted);font:600 14px "Chakra Petch",system-ui,sans-serif;cursor:pointer}
+.tog.on{color:var(--ink);border-color:rgba(255,255,255,.4)}
+.how{display:flex;justify-content:center;gap:18px;color:var(--muted);font-size:13px;margin:4px 0 0}
+.how span{display:flex;align-items:center;gap:6px}
+.tiny{color:var(--muted);font-size:12px;margin:14px 0 0}
+@media (prefers-reduced-motion:reduce){.btn:active{transform:none}}
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage">
+  <canvas id="c"></canvas>
+  <div id="hud"><div id="score" hidden>0</div></div>
+  <button id="pauseBtn" aria-label="Pause"><svg viewBox="0 0 18 18" fill="currentColor"><rect x="3" y="2" width="4" height="14" rx="1"/><rect x="11" y="2" width="4" height="14" rx="1"/></svg></button>
+
+  <div class="ov on" id="menu"><div class="card">
+    <h1><span class="r">2</span> <span class="b">Cars</span></h1>
+    <p class="sub">Tap the left or right half to switch that car's lane.</p>
+    <div class="lbl" style="margin-top:0">Mode</div>
+    <div class="chips modes" id="modes"></div>
+    <div class="how" style="margin-top:14px">
+      <span id="howCircle"><svg width="14" height="14"><circle cx="7" cy="7" r="5.5" fill="none" stroke="#f4f6ff" stroke-width="2.5"/></svg>Catch every circle</span>
+      <span><svg width="14" height="14"><rect x="1.5" y="1.5" width="11" height="11" rx="2" fill="none" stroke="#f4f6ff" stroke-width="2.5"/></svg>Dodge squares</span>
+    </div>
+    <div class="lbl">Lane switch speed</div>
+    <div class="chips" id="speeds"></div>
+    <div class="row"><button class="tog" id="sndBtn">Sound</button><button class="tog" id="vibBtn">Vibration</button></div>
+    <p class="best"><span id="modeName">Hard</span> best <b id="bestMenu">0</b></p>
+    <button class="btn" id="playBtn">Play</button>
+    <p class="tiny">Keyboard: F / ← left car · J / → right car · Space pause</p>
+  </div></div>
+
+  <div class="ov" id="over"><div class="card">
+    <h2 id="overWhy">Crashed</h2>
+    <div class="big" id="final">0</div>
+    <p class="best"><span id="modeOver">Hard</span> best <b id="bestOver">0</b></p>
+    <button class="btn" id="againBtn">Play again</button>
+    <div class="row"><button class="tog on" id="menuBtn">Settings</button></div>
+  </div></div>
+
+  <div class="ov" id="paused"><div class="card">
+    <h2>Paused</h2>
+    <p class="sub">Score <b id="pScore">0</b></p>
+    <button class="btn" id="resumeBtn">Resume</button>
+    <div class="row"><button class="tog on" id="quitBtn">Quit to menu</button></div>
+  </div></div>
+</div></div>
+
+<script>
+{
+const cv=document.getElementById('c'),cx=cv.getContext('2d'),stage=document.getElementById('stage');
+const $=id=>document.getElementById(id);
+const COLORS=['#ff5a64','#2fd4e0'],GLOW=['rgba(255,90,100,','rgba(47,212,224,'];
+const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230}];
+const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
+const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
+let cfg={mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
+const bestKey=()=>cfg.mode==='easy'?'best_easy':'best';
+const easy=()=>cfg.mode==='easy';
+let best=store.get(bestKey(),0);
+
+// ---- sizing ----
+let W=0,H=0,dpr=1,laneW=0;
+function resize(){dpr=Math.min(window.devicePixelRatio||1,3);const r=stage.getBoundingClientRect();W=r.width;H=r.height;laneW=W/4;
+  cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);cx.setTransform(dpr,0,0,dpr,0,0);
+  for(const c of cars){c.x=laneX(c.side,c.lane);c.fromX=c.toX=c.x;c.t=1}}
+const laneX=(s,l)=>(s*2+l+.5)*laneW;
+const carY=()=>H*.8;
+
+// ---- state ----
+let state='menu',score=0,objs=[],parts=[],spawnT=[0,0],elapsed=0,shake=0,overT=0,dash=0,missObj=null,crashSide=-1;
+const cars=[0,1].map(s=>({side:s,lane:s?0:1,x:0,fromX:0,toX:0,t:1,tilt:0,prevX:0}));
+
+function reset(){score=0;curSpeed=.5;objs=[];parts=[];elapsed=0;shake=0;missObj=null;crashSide=-1;spawnT=[.5,.5+rand(.25,.45)];
+  for(const c of cars){c.lane=c.side?0:1;c.x=c.fromX=c.toX=c.prevX=laneX(c.side,c.lane);c.t=1;c.tilt=0}
+  $('score').textContent='0'}
+const rand=(a,b)=>a+Math.random()*(b-a);
+const ease=t=>1-Math.pow(1-t,3);
+
+// ---- the important part: lane switching ----
+// Starts the instant the finger touches (pointerdown, not click), uses a short
+// ease-out so most of the travel happens in the first few frames, and a second
+// tap mid-switch immediately reverses from wherever the car currently is.
+function switchLane(s){
+  if(state!=='play')return;
+  const c=cars[s];c.lane^=1;c.fromX=c.x;c.toX=laneX(s,c.lane);c.t=0;
+  c.dur=SPEEDS[cfg.speed].ms/1000*Math.max(.35,Math.abs(c.toX-c.fromX)/laneW);
+  tick(s);
+}
+
+// ---- difficulty & spawning ----
+// Difficulty ramps with score: quick at first, then keeps climbing toward a ceiling.
+// Hard: ~1.6x start speed by 20 pts, ~2.2x by 50, ~2.7x by 100. Easy ramps on a gentler curve
+// because every dodged square is a point.
+function diff(){return 1-Math.exp(-(score/(easy()?60:42)+elapsed/300))}
+let curSpeed=.5;
+function targetSpeed(){return .5+.95*diff()}           // screen heights per second
+function speed(){return H*curSpeed}                    // px per second
+function spawn(s){
+  const kind=easy()?'s':(Math.random()<.56?'c':'s'),lane=Math.random()<.5?0:1;
+  objs.push({side:s,lane,kind,y:-laneW*.5,alive:true,pop:0});
+  const d=diff();spawnT[s]=Math.max(.28,rand(.6,1.05)*(1-.5*d));
+}
+
+// ---- audio / haptics ----
+let ac=null;
+function audio(){if(!cfg.sound)return null;try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){ac=null}return ac}
+function beep(f,dur,type,vol,slide){const a=audio();if(!a)return;try{const o=a.createOscillator(),g=a.createGain(),t=a.currentTime;o.type=type;o.frequency.setValueAtTime(f,t);
+  if(slide)o.frequency.exponentialRampToValueAtTime(slide,t+dur);g.gain.setValueAtTime(vol,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(a.destination);o.start(t);o.stop(t+dur)}catch(e){}}
+function tick(s){beep(s?520:440,.05,'triangle',.05)}
+function ding(){beep(660+Math.min(score,60)*9,.12,'sine',.12,990+Math.min(score,60)*9)}
+function boom(){beep(180,.45,'sawtooth',.18,40)}
+function buzz(ms){if(cfg.vib&&navigator.vibrate)try{navigator.vibrate(ms)}catch(e){}}
+
+// ---- loop ----
+let last=performance.now();
+function frame(now){
+  let dt=Math.min(.05,(now-last)/1000);last=now;
+  if(state==='play')update(dt);else if(state==='dying'){overT+=dt;updateParts(dt);shake=Math.max(0,shake-dt*2.5);if(overT>.7)showOver()}
+  else if(state==='menu'){dash+=dt*H*.35;idleCars(dt)}
+  draw();requestAnimationFrame(frame);
+}
+function idleCars(dt){for(const c of cars)moveCar(c,dt)}
+function moveCar(c,dt){
+  c.prevX=c.x;
+  if(c.t<1){c.t=Math.min(1,c.t+dt/c.dur);c.x=c.fromX+(c.toX-c.fromX)*ease(c.t)}
+  const v=dt>0?(c.x-c.prevX)/dt:0;const target=Math.max(-.5,Math.min(.5,v/(laneW*9)));
+  c.tilt+=(target-c.tilt)*Math.min(1,dt*30);
+}
+function update(dt){
+  elapsed+=dt;curSpeed+=(targetSpeed()-curSpeed)*Math.min(1,dt*2.5);const v=speed();dash+=v*dt;
+  for(let s=0;s<2;s++){spawnT[s]-=dt;if(spawnT[s]<=0)spawn(s)}
+  for(const c of cars)moveCar(c,dt);
+  const cy=carY(),ch=laneW*.78,cw=laneW*.42,sz=laneW*.46;
+  for(const o of objs){
+    o.y+=v*dt;if(!o.alive){o.pop+=dt;continue}
+    const c=cars[o.side],ox=laneX(o.side,o.lane);
+    // forgiving hitbox: squares shrink a bit, circles grow a bit
+    const k=o.kind==='s'?.78:1.12,hw=(cw/2+sz/2*k)*(o.kind==='s'?.92:1),hh=ch/2+sz/2*k;
+    if(Math.abs(c.x-ox)<hw&&Math.abs(cy-o.y)<hh){
+      if(o.kind==='c'){o.alive=false;score++;$('score').textContent=score;ding();burst(ox,o.y,o.side,10)}
+      else return die(o.side,'Crashed',o);
+    }else if(o.kind==='c'&&o.y-sz/2>cy+ch/2+4){return die(o.side,'Missed a circle',o)}
+    else if(easy()&&!o.passed&&o.y-sz/2>cy+ch/2){o.passed=true;score++;$('score').textContent=score;beep(560+Math.min(score,80)*6,.07,'sine',.06)}
+  }
+  objs=objs.filter(o=>o.y<H+laneW&&(o.alive||o.pop<.3));
+  updateParts(dt);
+}
+function die(side,why,o){
+  state='dying';overT=0;shake=1;crashSide=side;missObj=o;$('overWhy').textContent=why;
+  boom();buzz([60,40,90]);burst(cars[side].x,carY(),side,26);$('pauseBtn').style.display='none';
+}
+function showOver(){
+  state='over';if(score>best){best=score;store.set(bestKey(),best)}
+  $('final').textContent=score;$('bestOver').textContent=best;$('bestMenu').textContent=best;
+  $('over').classList.add('on');$('score').hidden=true;overShownAt=performance.now();
+}
+let overShownAt=0;
+
+// ---- particles ----
+function burst(x,y,s,n){for(let i=0;i<n;i++){const a=Math.random()*Math.PI*2,sp=rand(80,320);parts.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:rand(.3,.6),t:0,s})}}
+function updateParts(dt){for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.92;p.vy*=.92}parts=parts.filter(p=>p.t<p.life)}
+
+// ---- drawing ----
+function rr(x,y,w,h,r){cx.beginPath();cx.moveTo(x+r,y);cx.arcTo(x+w,y,x+w,y+h,r);cx.arcTo(x+w,y+h,x,y+h,r);cx.arcTo(x,y+h,x,y,r);cx.arcTo(x,y,x+w,y,r);cx.closePath()}
+function draw(){
+  cx.save();
+  if(shake>0)cx.translate(rand(-1,1)*10*shake,rand(-1,1)*10*shake);
+  // road halves
+  cx.fillStyle='#1b2048';cx.fillRect(-20,-20,W+40,H+40);
+  for(let s=0;s<2;s++){const g=cx.createLinearGradient(0,0,0,H);g.addColorStop(0,GLOW[s]+'0.02)');g.addColorStop(1,GLOW[s]+'0.09)');cx.fillStyle=g;cx.fillRect(s*W/2,0,W/2,H)}
+  // dashed lane lines (scroll with speed)
+  const seg=H/9,off=dash%seg;cx.fillStyle='rgba(255,255,255,.22)';
+  for(const lx of [W/4,W*3/4])for(let y=-seg+off;y<H;y+=seg)rr(lx-1.5,y,3,seg*.55,1.5),cx.fill();
+  // center divider
+  cx.fillStyle='rgba(255,255,255,.55)';cx.fillRect(W/2-2,0,4,H);
+  // objects
+  const sz=laneW*.46;
+  for(const o of objs){
+    const x=laneX(o.side,o.lane),col=COLORS[o.side];
+    if(!o.alive){const k=o.pop/.3;cx.globalAlpha=1-k;cx.strokeStyle=col;cx.lineWidth=3;cx.beginPath();cx.arc(x,o.y,sz/2*(1+k*1.4),0,7);cx.stroke();cx.globalAlpha=1;continue}
+    const flash=o===missObj&&state!=='play'?(Math.sin(performance.now()/60)>0?1:.35):1;cx.globalAlpha=flash;
+    cx.shadowColor=col;cx.shadowBlur=14;
+    if(o.kind==='c'){cx.fillStyle=col;cx.beginPath();cx.arc(x,o.y,sz/2,0,7);cx.fill();cx.shadowBlur=0;
+      cx.fillStyle='#1b2048';cx.beginPath();cx.arc(x,o.y,sz/2-sz*.13,0,7);cx.fill();
+      cx.fillStyle=col;cx.beginPath();cx.arc(x,o.y,sz*.16,0,7);cx.fill()}
+    else{cx.fillStyle=col;rr(x-sz/2,o.y-sz/2,sz,sz,sz*.16);cx.fill();cx.shadowBlur=0;
+      cx.fillStyle='#1b2048';rr(x-sz/2+sz*.13,o.y-sz/2+sz*.13,sz*.74,sz*.74,sz*.08);cx.fill();
+      cx.fillStyle=col;rr(x-sz*.16,o.y-sz*.16,sz*.32,sz*.32,sz*.05);cx.fill()}
+    cx.globalAlpha=1;cx.shadowBlur=0;
+  }
+  // cars
+  for(const c of cars)if(!(state!=='play'&&state!=='menu'&&c.side===crashSide&&overT>.08))drawCar(c);
+  // particles
+  for(const p of parts){cx.globalAlpha=1-p.t/p.life;cx.fillStyle=COLORS[p.s];cx.fillRect(p.x-3,p.y-3,6,6)}
+  cx.globalAlpha=1;cx.restore();
+}
+function drawCar(c){
+  const w=laneW*.42,h=laneW*.78,y=carY();
+  cx.save();cx.translate(c.x,y);cx.rotate(c.tilt);
+  // headlight beams
+  const g=cx.createLinearGradient(0,-h/2,0,-h/2-h*1.3);g.addColorStop(0,'rgba(255,250,220,.28)');g.addColorStop(1,'rgba(255,250,220,0)');
+  cx.fillStyle=g;cx.beginPath();cx.moveTo(-w*.38,-h/2);cx.lineTo(-w*.85,-h/2-h*1.3);cx.lineTo(w*.85,-h/2-h*1.3);cx.lineTo(w*.38,-h/2);cx.fill();
+  // shadow
+  cx.fillStyle='rgba(0,0,0,.35)';rr(-w/2+3,-h/2+5,w,h,w*.3);cx.fill();
+  // wheels
+  cx.fillStyle='#0b0d1f';for(const sx of [-1,1])for(const sy of [-.28,.3])rr(sx*w/2-(sx>0?w*.12:w*.06)-0,sy*h-h*.1,w*.18,h*.2,3),cx.fill();
+  // body
+  const col=COLORS[c.side];const bg=cx.createLinearGradient(-w/2,0,w/2,0);bg.addColorStop(0,col);bg.addColorStop(.5,'#fff');bg.addColorStop(.52,col);bg.addColorStop(1,col);
+  cx.fillStyle=col;rr(-w/2,-h/2,w,h,w*.32);cx.fill();
+  cx.fillStyle='rgba(255,255,255,.18)';rr(-w/2+2,-h/2+2,w*.28,h-4,w*.2);cx.fill();
+  // windshield + rear window
+  cx.fillStyle='#141834';rr(-w*.36,-h*.2,w*.72,h*.2,w*.12);cx.fill();rr(-w*.32,h*.18,w*.64,h*.12,w*.1);cx.fill();
+  // roof
+  cx.fillStyle='rgba(0,0,0,.12)';rr(-w*.34,-h*.0,w*.68,h*.18,w*.1);cx.fill();
+  // lights
+  cx.fillStyle='#fff6d6';rr(-w*.38,-h/2+2,w*.2,h*.06,2);cx.fill();rr(w*.18,-h/2+2,w*.2,h*.06,2);cx.fill();
+  cx.fillStyle='#ff2a3a';rr(-w*.38,h/2-h*.06-1,w*.18,h*.05,2);cx.fill();rr(w*.2,h/2-h*.06-1,w*.18,h*.05,2);cx.fill();
+  cx.restore();
+}
+
+// ---- input ----
+// pointerdown fires on touch-start (no 300ms click delay); every finger is independent,
+// so two thumbs can switch both cars on the same frame.
+cv.addEventListener('pointerdown',e=>{e.preventDefault();const r=cv.getBoundingClientRect();switchLane(e.clientX-r.left<r.width/2?0:1)},{passive:false});
+cv.addEventListener('contextmenu',e=>e.preventDefault());
+document.addEventListener('touchmove',e=>e.preventDefault(),{passive:false});
+document.addEventListener('keydown',e=>{
+  if(e.repeat)return;const k=e.key.toLowerCase();
+  if(k==='f'||k==='arrowleft'||k==='a'){switchLane(0);e.preventDefault()}
+  else if(k==='j'||k==='arrowright'||k==='l'){switchLane(1);e.preventDefault()}
+  else if(k===' '||k==='escape'||k==='p'){e.preventDefault();if(state==='play')pause();else if(state==='paused')resume();else if(state==='menu'||state==='over')start()}
+  else if(k==='enter'&&(state==='menu'||state==='over'))start();
+});
+function start(){audio();$('menu').classList.remove('on');$('over').classList.remove('on');$('paused').classList.remove('on');
+  reset();state='play';$('score').hidden=false;$('pauseBtn').style.display='flex';last=performance.now()}
+function pause(){if(state!=='play')return;state='paused';$('pScore').textContent=score;$('paused').classList.add('on')}
+function resume(){$('paused').classList.remove('on');state='play';last=performance.now()}
+function toMenu(){state='menu';objs=[];parts=[];$('over').classList.remove('on');$('paused').classList.remove('on');$('menu').classList.add('on');$('score').hidden=true;$('pauseBtn').style.display='none';reset()}
+$('playBtn').onclick=start;$('againBtn').onclick=start;$('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('menuBtn').onclick=toMenu;
+$('pauseBtn').addEventListener('pointerdown',e=>{e.stopPropagation();pause()});
+// tap anywhere on the game-over screen (after a short guard so a panicked tap doesn't restart)
+$('over').addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;if(performance.now()-overShownAt>500)start()});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)pause()});
+window.addEventListener('blur',pause);
+
+// ---- settings UI ----
+function renderSettings(){
+  $('speeds').innerHTML=SPEEDS.map((s,i)=>`<button class="chip${i===cfg.speed?' on':''}" data-i="${i}">${s.n}<small>${s.ms} ms</small></button>`).join('');
+  $('sndBtn').classList.toggle('on',cfg.sound);$('sndBtn').textContent='Sound '+(cfg.sound?'on':'off');
+  $('vibBtn').classList.toggle('on',cfg.vib);$('vibBtn').textContent='Vibration '+(cfg.vib?'on':'off');
+  $('bestMenu').textContent=best;
+  $('modes').innerHTML=MODES.map(m=>`<button class="chip${m.id===cfg.mode?' on':''}" data-m="${m.id}">${m.n}<small>${m.d}</small></button>`).join('');
+  $('howCircle').style.display=easy()?'none':'flex';
+  $('modeName').textContent=$('modeOver').textContent=easy()?'Easy':'Hard';
+}
+$('modes').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;cfg.mode=b.dataset.m;store.set('mode',cfg.mode);best=store.get(bestKey(),0);renderSettings()});
+$('speeds').addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;cfg.speed=+b.dataset.i;store.set('speed',cfg.speed);renderSettings();
+  // preview the feel on the menu screen
+  state='play';switchLane(0);switchLane(1);state='menu'});
+$('sndBtn').onclick=()=>{cfg.sound=!cfg.sound;store.set('sound',cfg.sound);renderSettings();if(cfg.sound)tick(0)};
+$('vibBtn').onclick=()=>{cfg.vib=!cfg.vib;store.set('vib',cfg.vib);renderSettings();buzz(30)};
+
+window.addEventListener('resize',resize);
+if(window.ResizeObserver){const ro=new ResizeObserver(resize);ro.observe(stage)}
+resize();reset();renderSettings();
+requestAnimationFrame(t=>{last=t;frame(t)});
+
+// offline install when hosted on your own site (ignored inside the claude.ai viewer)
+try{if('serviceWorker' in navigator&&location.protocol==='https:'&&window.self===window.top)navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
+}
+</script>
+</body>
+</html>
