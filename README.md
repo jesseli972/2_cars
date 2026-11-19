@@ -15,7 +15,7 @@ The game speeds up and spawns obstacles closer together as your score climbs. Yo
 
 ## Music
 
-Each theme has its own original synthwave loop, generated in code with the Web Audio API, so there are no audio files and no licensing to worry about. The menu plays a soft pad and arpeggio. A run adds bass and drums, the hi-hats double up past mid-speed, and the tempo climbs with the game. Music can be turned off on the menu, separately from sound effects.
+Each theme has its own original synthwave loop, generated in code with the Web Audio API, so there are no audio files and no licensing to worry about. The menu plays a soft pad and arpeggio. A run adds bass and drums, the hi-hats double up past mid-speed, and the tempo climbs with the game. Music can be turned off on the menu, separately from sound effects. On iPhone, music plays even with the silent switch on while Music is enabled.
 
 ## Themes
 
@@ -24,6 +24,7 @@ Themes unlock from your best score in either mode and can be picked on the menu:
 | Theme | Unlocks at |
 |---|---|
 | Night City | Start |
+| Ausar #9 | Start (hardwood court, #9 jersey cars, basketballs, arena beat) |
 | Synthwave | 50 |
 | Snow | 100 |
 | Deep Space | 200 |
