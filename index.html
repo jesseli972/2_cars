@@ -156,7 +156,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230}];
-const VERSION='2.2';
+const VERSION='2.3';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -176,7 +176,7 @@ const cleanName=v=>v.replace(/[^A-Za-z0-9 _.\-]/g,'').replace(/\s+/g,' ').trim()
 const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 async function sb(path,opt={}){
   const res=await fetch(SB_URL+'/rest/v1/'+path,{...opt,headers:{apikey:SB_KEY,'Content-Type':'application/json',...(opt.headers||{})}});
-  if(!res.ok){const e=new Error('HTTP '+res.status);e.status=res.status;throw e}
+  if(!res.ok){let body={};try{body=await res.json()}catch(_){}const e=new Error(body.message||('HTTP '+res.status));e.status=res.status;e.code=body.code||'';throw e}
   return res;
 }
 // runs waiting to be posted (no name yet, or offline)
@@ -222,7 +222,16 @@ async function openBoard(mode){
       if(me)html+=`<li class="gap">⋯</li>`+li(me.rank,{name:player.name||'You',score:me.score,device:player.id})}
     $('lbList').innerHTML=html;
     $('lbStatus').textContent=rows.length?'Best score per player':'No scores yet. Be the first!';
-  }catch(e){$('lbStatus').textContent=navigator.onLine===false?'You\'re offline. Scores will post when you reconnect.':'Couldn\'t load the leaderboard. Try again in a moment.'}
+  }catch(e){$('lbStatus').textContent=lbError(e)}
+}
+// say exactly what went wrong, so it can be fixed
+function lbError(e){
+  if(navigator.onLine===false)return 'You\'re offline. Scores will post when you reconnect.';
+  if(e.code==='PGRST205'||e.code==='42P01'||e.status===404)return 'The database isn\'t set up yet: run supabase/setup.sql in Supabase\'s SQL Editor.';
+  if(e.code==='42501'||e.status===403)return 'The database blocked reading scores (permissions). Re-run supabase/setup.sql.';
+  if(e.status===401)return 'Supabase rejected the app\'s key ('+(e.message||401)+').';
+  if(!e.status)return 'Couldn\'t reach Supabase ('+(e.message||'network error')+').';
+  return 'Leaderboard error '+e.status+(e.code?' '+e.code:'')+': '+(e.message||'');
 }
 window.addEventListener('online',()=>flushScores());
 
