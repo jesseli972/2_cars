@@ -125,7 +125,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230}];
-const VERSION='1.8';
+const VERSION='1.9';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:store.get('speed',1),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -285,7 +285,7 @@ function update(dt){
   objs=objs.filter(o=>o.y<H+laneW&&(o.alive||o.pop<.3));
   updateParts(dt);
 }
-function nearMiss(s){nearFlash[s]=1;floats.push({x:cars[s].x,y:carY()-laneW*.7,txt:th().decor==='court'?'LOCKDOWN!':'Close!',t:0,s});
+function nearMiss(s){nearFlash[s]=1;floats.push({x:cars[s].x,y:carY()-laneW*.7,txt:'Close!',t:0,s});
   beep(1400,.16,'triangle',.07,500);buzz(12)}
 function die(side,why,o){
   state='dying';overT=0;shake=1;crashSide=side;missObj=o;$('overWhy').textContent=why;
@@ -307,7 +307,7 @@ function updateParts(dt){for(const p of parts){p.t+=dt;p.x+=p.vx*dt;p.y+=p.vy*dt
 // ---- ambient effects ----
 const heat=()=>Math.max(0,Math.min(1,(curSpeed-.42)/.78));
 function initDeco(){deco={flakes:Array.from({length:70},()=>({x:Math.random(),y:Math.random(),r:rand(.8,2.6),w:rand(0,6.3)})),
-  stars:Array.from({length:110},(_,i)=>({x:Math.random(),y:Math.random(),l:i%3,r:[.6,1,1.6][i%3]})),flashes:[]}}
+  stars:Array.from({length:110},(_,i)=>({x:Math.random(),y:Math.random(),l:i%3,r:[.6,1,1.6][i%3]}))}}
 function updateFx(dt){
   if(!deco)initDeco();
   for(const c of cars){for(const g of c.trail){g.t+=dt;g.dy+=roadV*.6*dt}c.trail=c.trail.filter(g=>g.t<.16)}
@@ -322,42 +322,6 @@ function updateFx(dt){
   const v=roadV/H;
   for(const f of deco.flakes){f.y+=(v*.85+.12)*dt;f.w+=dt*1.7;if(f.y>1.02){f.y=-.02;f.x=Math.random()}}
   for(const st of deco.stars){st.y+=v*[.15,.35,.7][st.l]*dt;if(st.y>1){st.y=0;st.x=Math.random()}}
-  for(const f of deco.flashes)f.t+=dt;deco.flashes=deco.flashes.filter(f=>f.t<.14);
-  if(th().decor==='court'&&Math.random()<dt*(3+10*heat()))deco.flashes.push({x:Math.random()<.5?rand(6,W*.12):rand(W*.88,W-6),y:rand(0,H*.9),t:0});
-}
-
-// ---- Ausar #9 arena: jumbotron panels, LED ribbons, crowd flashes (original graphics, no logos) ----
-const JUMBO=['#9','LOCKDOWN','dunk','DEFENSE','ALL-DEFENSE','dunk','#9','LOCK IN'];
-function drawDunker(x,y,s){ // a generic leaping-dunk silhouette (not any real player)
-  const P=(px,py)=>[x+(px-50)*s/100,y+(py-50)*s/100],L=(pts,w)=>{cx.lineWidth=w*s/100;cx.beginPath();cx.moveTo(...P(...pts[0]));for(const q of pts.slice(1))cx.lineTo(...P(...q));cx.stroke()};
-  cx.lineCap=cx.lineJoin='round';
-  L([[52,30],[48,54]],13);L([[60,29],[72,15],[78,5]],7);L([[51,31],[40,40],[35,33]],6);
-  L([[50,53],[63,66],[57,84]],8);L([[47,53],[36,63],[29,78]],8);
-  cx.beginPath();cx.arc(...P(56,19),7.5*s/100,0,7);cx.fill();
-  cx.save();cx.fillStyle='#ff8a3d';cx.shadowColor='#ff8a3d';cx.shadowBlur=10;cx.beginPath();cx.arc(...P(82,2),6.5*s/100,0,7);cx.fill();cx.restore();cx.lineCap=cx.lineJoin='miter'}
-function drawArena(){
-  const now=performance.now()/1000,PER=H*3.1,pw=W*.84,ph=H*.17;
-  for(let k=-1;k<=1;k++){const n=Math.floor(dash/PER)-k,y=dash%PER+k*PER-ph-H*.15;if(y>H||y+ph<0)continue;
-    const x=(W-pw)/2,msg=JUMBO[((n%JUMBO.length)+JUMBO.length)%JUMBO.length],hue=n%2?'#1d4ed8':'#e0223f';
-    cx.save();cx.shadowColor='rgba(0,0,0,.5)';cx.shadowBlur=18;cx.fillStyle='rgba(8,10,24,.93)';rr(x,y,pw,ph,14);cx.fill();cx.restore();
-    const bd=cx.createLinearGradient(x,0,x+pw,0);bd.addColorStop(0,'#e0223f');bd.addColorStop(1,'#1d4ed8');cx.strokeStyle=bd;cx.lineWidth=3;rr(x,y,pw,ph,14);cx.stroke();
-    cx.save();rr(x+4,y+4,pw-8,ph-8,10);cx.clip();
-    // light sweep across the screen
-    const sx=x+((now*.6+n*.37)%1.4-.2)*pw,sw=cx.createLinearGradient(sx-pw*.15,0,sx+pw*.15,0);sw.addColorStop(0,'rgba(255,255,255,0)');sw.addColorStop(.5,'rgba(255,255,255,.08)');sw.addColorStop(1,'rgba(255,255,255,0)');
-    cx.fillStyle=sw;cx.fillRect(x,y,pw,ph);
-    cx.shadowColor=hue;cx.shadowBlur=16;cx.fillStyle='#fff';cx.strokeStyle='#fff';
-    if(msg==='dunk'){drawDunker(x+pw*.3,y+ph*.55,ph*.95);cx.textAlign='left';cx.textBaseline='middle';
-      cx.font='700 '+Math.round(ph*.34)+'px "Chakra Petch",system-ui,sans-serif';cx.fillText('SLAM!',x+pw*.5,y+ph*.52)}
-    else{cx.textAlign='center';cx.textBaseline='middle';let fs=ph*(msg.length<4?.66:.4);cx.font='700 '+Math.round(fs)+'px "Chakra Petch",system-ui,sans-serif';
-      while(cx.measureText(msg).width>pw*.86&&fs>10){fs-=2;cx.font='700 '+Math.round(fs)+'px "Chakra Petch",system-ui,sans-serif'}
-      cx.fillText(msg,W/2,y+ph*.54)}
-    cx.shadowBlur=0;cx.textBaseline='alphabetic';
-    // LED dot texture
-    cx.fillStyle='rgba(0,0,0,.28)';for(let gy=y;gy<y+ph;gy+=4)cx.fillRect(x,gy,pw,1.3);
-    cx.restore()}
-  // LED ribbons chasing red/blue down both sidelines
-  const step=14,ph2=(now*90)%(step*2);
-  for(let y=-step*2+ph2;y<H;y+=step){const i=Math.round((y-ph2)/step);cx.fillStyle=i%2?'rgba(29,78,216,.9)':'rgba(224,34,63,.9)';cx.fillRect(1,y,4,step-5);cx.fillRect(W-5,y,4,step-5)}
 }
 
 // ---- drawing ----
@@ -389,10 +353,7 @@ function drawDecor(t){
       cx.fillStyle='rgba(255,255,255,.92)';cx.fillRect(0,yb+L/2-1.5,W,3);
       cx.font='700 '+Math.round(W*.12)+'px "Chakra Petch",system-ui,sans-serif';cx.textAlign='center';cx.textBaseline='middle';
       cx.fillStyle='rgba(255,255,255,.85)';cx.fillText('9',W/2,yb+L/2+1);cx.textBaseline='alphabetic'}
-    const v=cx.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(20,8,0,.45)');cx.fillStyle=v;cx.fillRect(0,0,W,H);
-    // camera flashes from the crowd along the sidelines
-    for(const f of deco.flashes){const a=1-f.t/.14,R=4+10*a;const g=cx.createRadialGradient(f.x,f.y,0,f.x,f.y,R*2);g.addColorStop(0,'rgba(255,255,255,'+a+')');g.addColorStop(1,'rgba(255,255,255,0)');
-      cx.fillStyle=g;cx.fillRect(f.x-R*2,f.y-R*2,R*4,R*4)}}
+    const v=cx.createRadialGradient(W/2,H/2,H*.25,W/2,H/2,H*.75);v.addColorStop(0,'rgba(0,0,0,0)');v.addColorStop(1,'rgba(20,8,0,.45)');cx.fillStyle=v;cx.fillRect(0,0,W,H)}
   else if(t.decor==='stars'){ // nebula + three-layer parallax starfield
     const g=cx.createRadialGradient(W*.75,H*.25,0,W*.75,H*.25,W*.9);g.addColorStop(0,'rgba(140,80,255,.16)');g.addColorStop(1,'rgba(140,80,255,0)');cx.fillStyle=g;cx.fillRect(0,0,W,H);
     for(const st of deco.stars){cx.globalAlpha=[.35,.6,.95][st.l];cx.fillStyle='#fff';cx.fillRect(st.x*W,st.y*H,st.r,st.r*(1+st.l*roadV/H*1.5))}cx.globalAlpha=1}
@@ -411,7 +372,6 @@ function draw(){
   const seg=H/9,off=dash%seg;cx.fillStyle=t.lane;
   for(const lx of [W/4,W*3/4])for(let y=-seg+off;y<H;y+=seg)rr(lx-1.5,y,3,seg*.55,1.5),cx.fill();
   cx.fillStyle=t.div;cx.fillRect(W/2-2,0,4,H);
-  if(t.decor==='court')drawArena();
   // speed lines
   cx.strokeStyle=t.streak||'#fff';cx.lineWidth=1.5;for(const k of streaks){cx.globalAlpha=k.a;cx.beginPath();cx.moveTo(k.x,k.y-k.len);cx.lineTo(k.x,k.y);cx.stroke()}cx.globalAlpha=1;
   // objects
