@@ -49,6 +49,17 @@ One global chat for everyone playing, opened from the **Chat** button on the men
 
 **One-time setup:** paste [`supabase/chat.sql`](supabase/chat.sql) into Supabase's **SQL Editor** and click **Run**. The messages table is locked, so the app can only read and post through two database functions.
 
+## Push notifications
+
+Friends can get a phone notification when someone posts in the chat, even with the app closed. Turn it on from the chat screen ("Turn on notifications for new messages"). On iPhone this only works in the Home Screen app (iOS 16.4+). You don't get notified about your own messages. Tapping a notification opens the chat.
+
+**One-time setup:**
+1. Run [`supabase/push.sql`](supabase/push.sql) in Supabase's **SQL Editor**.
+2. **Edge Functions → Deploy a new function → Via Editor**. Name it `chat-push`, replace the starter code with [`supabase/functions/chat-push/index.ts`](supabase/functions/chat-push/index.ts), and click **Deploy**.
+3. Open the function's settings and turn **off** "Verify JWT" (the app calls it with the public key). The function only sends a message once, and only within 2 minutes of it being posted, so it can't be used to spam.
+
+The function makes its own signing keys on first run and stores them in the locked `push_config` table, so there are no secrets to copy.
+
 ## Install on your phone
 
 Open the Play link, then:

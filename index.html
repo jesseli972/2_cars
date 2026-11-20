@@ -166,7 +166,8 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
       <p class="lbStatus" id="chatStatus"></p>
       <form class="sendRow" id="sendForm"><input id="msgIn" maxlength="300" autocomplete="off" placeholder="Message"><button class="tog on" type="submit">Send</button></form>
     </div>
-    <button class="roomBtn" id="iconBadgeBtn" type="button" hidden style="max-width:none;width:100%;margin:-4px 0 10px">Show unread count on the app icon</button>
+    <button class="roomBtn" id="pushBtn" type="button" hidden style="max-width:none;width:100%;margin:-4px 0 10px"></button>
+    <p class="lbStatus" id="pushHint" hidden style="margin:-4px 0 10px"></p>
     <div class="row"><button class="tog on" id="chatClose">Close</button></div>
   </div></div>
 
@@ -194,7 +195,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230},{n:'Relaxed',ms:320},{n:'Chill',ms:420}];
-const VERSION='2.6';
+const VERSION='2.7';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:Math.min(store.get('speed',2),5),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -286,8 +287,40 @@ async function pollChat(){
 function markSeen(){chat.seen=chat.last;store.set('chatSeen',chat.seen);chat.unread=0;updateBadge()}
 function updateBadge(){for(const id of ['chatBadge','chatBadge2']){$(id).hidden=!chat.unread;$(id).textContent=chat.unread>9?'9+':chat.unread}
   try{if(navigator.setAppBadge){if(chat.unread)navigator.setAppBadge(chat.unread).catch(()=>{});else navigator.clearAppBadge().catch(()=>{})}}catch(e){}}
-function iconBadgeOffer(){$('iconBadgeBtn').hidden=!(navigator.setAppBadge&&window.Notification&&Notification.permission==='default')}
-$('iconBadgeBtn').onclick=()=>{try{Notification.requestPermission().then(()=>{iconBadgeOffer();updateBadge()})}catch(e){}};
+// ---- push notifications (Supabase Edge Function "chat-push") ----
+const PUSH_FN=SB_URL+'/functions/v1/chat-push';
+const pushable=()=>'serviceWorker' in navigator&&'PushManager' in window&&'Notification' in window&&location.protocol==='https:'&&window.self===window.top;
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const standalone=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const keyBytes=k=>Uint8Array.from(atob(k.replace(/-/g,'+').replace(/_/g,'/')),c=>c.charCodeAt(0));
+async function currentSub(){try{const reg=await navigator.serviceWorker.ready;return await reg.pushManager.getSubscription()}catch(e){return null}}
+async function saveSub(sub){const j=sub.toJSON();await rpc('push_subscribe',{p_endpoint:j.endpoint,p_p256dh:j.keys.p256dh,p_auth:j.keys.auth,p_device:player.id})}
+async function pushUI(){
+  const btn=$('pushBtn'),hint=$('pushHint');btn.hidden=true;hint.hidden=true;
+  if(!pushable()){if(isIOS&&!standalone()){hint.textContent='To get notifications on iPhone, add 2 Cars to your Home Screen and open it from there.';hint.hidden=false}return}
+  if(Notification.permission==='denied'){hint.textContent='Notifications are blocked. Allow them for 2 Cars in your phone\'s Settings.';hint.hidden=false;return}
+  const on=Notification.permission==='granted'&&!!(await currentSub());
+  btn.textContent=on?'🔔 Notifications on · tap to turn off':'Turn on notifications for new messages';btn.dataset.on=on?'1':'';btn.hidden=false;
+}
+$('pushBtn').onclick=async()=>{
+  const btn=$('pushBtn');
+  if(btn.dataset.on){const sub=await currentSub();if(sub){try{await rpc('push_unsubscribe',{p_endpoint:sub.endpoint})}catch(e){}await sub.unsubscribe().catch(()=>{})}return pushUI()}
+  btn.textContent='Turning on…';
+  try{
+    const perm=await Notification.requestPermission();   // must be the first await, straight from the tap
+    if(perm!=='granted')return pushUI();
+    const {publicKey}=await (await fetch(PUSH_FN)).json();
+    const reg=await navigator.serviceWorker.ready;
+    const sub=(await reg.pushManager.getSubscription())||await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:keyBytes(publicKey)});
+    await saveSub(sub);updateBadge();
+  }catch(e){$('chatStatus').textContent='Couldn\'t turn on notifications ('+(e.message||e)+'). Is the chat-push function set up?'}
+  pushUI();
+};
+// keep this phone's subscription fresh on the server (it can change after updates)
+setTimeout(async()=>{if(pushable()&&Notification.permission==='granted'){const sub=await currentSub();if(sub)saveSub(sub).catch(()=>{})}},4000);
+// tapping a notification opens the chat
+if(location.hash==='#chat')setTimeout(()=>{history.replaceState(null,'',location.pathname);showChat()},400);
+if('serviceWorker' in navigator)navigator.serviceWorker.addEventListener('message',e=>{if(e.data&&e.data.type==='open-chat'&&state!=='play')showChat()});
 function chatError(e){
   if(navigator.onLine===false)return 'You\'re offline.';
   if(e.code==='PGRST202'||e.status===404)return 'Chat isn\'t set up yet: run supabase/chat.sql in Supabase\'s SQL Editor.';
@@ -302,7 +335,7 @@ function showChat(){
   $('chatSetup').hidden=ready;$('chatMain').hidden=!ready;
   $('roomBtn').textContent='Name: '+player.name;$('roomBtn').hidden=!ready;
   if(!ready){$('chatNameIn').value='';$('setupErr').textContent='';return}
-  $('msgs').dataset.first='';renderMsgs();markSeen();pollChat();schedulePoll();iconBadgeOffer();
+  $('msgs').dataset.first='';renderMsgs();markSeen();pollChat();schedulePoll();pushUI();
 }
 $('chatBtn').onclick=showChat;$('chatBtn2').onclick=showChat;
 $('chatClose').onclick=()=>{$('chat').classList.remove('on');$('msgIn').blur();schedulePoll()};
@@ -312,7 +345,9 @@ $('chatSetup').addEventListener('submit',e=>{e.preventDefault();
   document.activeElement&&document.activeElement.blur();showChat();flushScores()});
 $('sendForm').addEventListener('submit',async e=>{e.preventDefault();
   const body=$('msgIn').value.trim();if(!body)return;$('msgIn').value='';
-  try{await rpc('chat_send',{p_room:chat.room,p_name:player.name,p_device:player.id,p_body:body});await pollChat();$('msgs').scrollTop=$('msgs').scrollHeight}
+  try{const id=await rpc('chat_send',{p_room:chat.room,p_name:player.name,p_device:player.id,p_body:body});
+    fetch(PUSH_FN,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id})}).catch(()=>{});
+    await pollChat();$('msgs').scrollTop=$('msgs').scrollHeight}
   catch(err){$('msgIn').value=body;$('chatStatus').textContent=chatError(err)}});
 setTimeout(()=>{pollChat();schedulePoll()},1500);
 
