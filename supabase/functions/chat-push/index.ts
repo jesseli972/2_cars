@@ -1,5 +1,6 @@
 // 2 Cars: chat push notifications.
-// Deploy in Supabase: Edge Functions -> Deploy a new function -> Via Editor, name it "chat-push",
+// Deploy in Supabase: Edge Functions -> Deploy a new function -> Via Editor. The game calls it as "swift-api"
+// (the name Supabase gave it); if you use another name, update PUSH_FN in index.html.
 // paste this file, Deploy, then turn OFF "Verify JWT" in the function's settings.
 //
 // GET  -> { publicKey }   the key phones use to subscribe (created on first run, stored in push_config)

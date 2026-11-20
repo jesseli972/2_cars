@@ -55,7 +55,7 @@ Friends can get a phone notification when someone posts in the chat, even with t
 
 **One-time setup:**
 1. Run [`supabase/push.sql`](supabase/push.sql) in Supabase's **SQL Editor**.
-2. **Edge Functions → Deploy a new function → Via Editor**. Name it `chat-push`, replace the starter code with [`supabase/functions/chat-push/index.ts`](supabase/functions/chat-push/index.ts), and click **Deploy**.
+2. **Edge Functions → Deploy a new function → Via Editor**. Name it `swift-api` (or change `PUSH_FN` in `index.html` to match), replace the starter code with [`supabase/functions/chat-push/index.ts`](supabase/functions/chat-push/index.ts), and click **Deploy**.
 3. Open the function's settings and turn **off** "Verify JWT" (the app calls it with the public key). The function only sends a message once, and only within 2 minutes of it being posted, so it can't be used to spam.
 
 The function makes its own signing keys on first run and stores them in the locked `push_config` table, so there are no secrets to copy.
