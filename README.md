@@ -33,7 +33,7 @@ On a computer: `F` / `←` moves the left car, `J` / `→` moves the right car, 
 
 ## Lane switching
 
-A lane switch starts on touch-down, not on release. It uses a short ease-out, so most of the movement happens in the first few frames. Tapping again mid-switch reverses the car right away from wherever it is. You can pick the switch speed in the menu: Instant 45 ms, Snappy 85 ms (default), Smooth 140 ms or Classic 230 ms.
+A lane switch starts on touch-down, not on release. It uses a short ease-out, so most of the movement happens in the first few frames. Tapping again mid-switch reverses the car right away from wherever it is. You can pick the switch speed in the menu: Instant 45 ms, Snappy 85 ms, Smooth 140 ms (default), Classic 230 ms, Relaxed 320 ms or Chill 420 ms.
 
 ## Leaderboard
 
