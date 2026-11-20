@@ -73,7 +73,10 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
 .lbList .sc{font-weight:700;font-variant-numeric:tabular-nums}
 .lbList .gap{justify-content:center;color:var(--muted);background:none!important;padding:0}
 .lbStatus{color:var(--muted);font-size:13px;margin:10px 0 12px;min-height:1em}
-.badged{position:relative}.badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ffd166;color:#141834;font-size:12px;font-weight:700;line-height:20px}
+.badged{position:relative}.badge{position:absolute;top:-8px;right:-8px;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:#ff3b30;color:#fff;font-size:12px;font-weight:700;line-height:22px;box-shadow:0 0 0 2px #161a3c,0 2px 8px rgba(255,59,48,.5);animation:pop .25s ease-out}
+.badge[hidden]{display:none}
+@keyframes pop{from{transform:scale(.4)}to{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){.badge{animation:none}}
 .chatCard{display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
 .chatHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
 .roomBtn{border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--muted);border-radius:10px;min-height:36px;padding:0 10px;font:600 13px "Chakra Petch",system-ui,sans-serif;cursor:pointer;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -134,7 +137,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
       <div class="row"><input id="nameIn" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Name"><button class="tog on" type="submit">Post</button></div>
     </form>
     <button class="btn" id="againBtn">Play again</button>
-    <div class="row"><button class="tog on" id="menuBtn">Settings</button><button class="tog on" id="lbBtn2">Leaderboard</button></div>
+    <div class="row"><button class="tog on" id="menuBtn">Settings</button><button class="tog on" id="lbBtn2">Leaderboard</button><button class="tog on badged" id="chatBtn2">Chat<span class="badge" id="chatBadge2" hidden></span></button></div>
   </div></div>
 
   <div class="ov" id="lb"><div class="card">
@@ -163,6 +166,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
       <p class="lbStatus" id="chatStatus"></p>
       <form class="sendRow" id="sendForm"><input id="msgIn" maxlength="300" autocomplete="off" placeholder="Message"><button class="tog on" type="submit">Send</button></form>
     </div>
+    <button class="roomBtn" id="iconBadgeBtn" type="button" hidden style="max-width:none;width:100%;margin:-4px 0 10px">Show unread count on the app icon</button>
     <div class="row"><button class="tog on" id="chatClose">Close</button></div>
   </div></div>
 
@@ -190,7 +194,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230},{n:'Relaxed',ms:320},{n:'Chill',ms:420}];
-const VERSION='2.5';
+const VERSION='2.6';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:Math.min(store.get('speed',2),5),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -280,7 +284,10 @@ async function pollChat(){
   finally{chat.busy=false}
 }
 function markSeen(){chat.seen=chat.last;store.set('chatSeen',chat.seen);chat.unread=0;updateBadge()}
-function updateBadge(){$('chatBadge').hidden=!chat.unread;$('chatBadge').textContent=chat.unread>9?'9+':chat.unread}
+function updateBadge(){for(const id of ['chatBadge','chatBadge2']){$(id).hidden=!chat.unread;$(id).textContent=chat.unread>9?'9+':chat.unread}
+  try{if(navigator.setAppBadge){if(chat.unread)navigator.setAppBadge(chat.unread).catch(()=>{});else navigator.clearAppBadge().catch(()=>{})}}catch(e){}}
+function iconBadgeOffer(){$('iconBadgeBtn').hidden=!(navigator.setAppBadge&&window.Notification&&Notification.permission==='default')}
+$('iconBadgeBtn').onclick=()=>{try{Notification.requestPermission().then(()=>{iconBadgeOffer();updateBadge()})}catch(e){}};
 function chatError(e){
   if(navigator.onLine===false)return 'You\'re offline.';
   if(e.code==='PGRST202'||e.status===404)return 'Chat isn\'t set up yet: run supabase/chat.sql in Supabase\'s SQL Editor.';
@@ -288,16 +295,16 @@ function chatError(e){
   return lbError(e);
 }
 // check often while the chat is open, now and then on the menu (for the badge), never during a run
-function schedulePoll(){clearTimeout(chat.timer);const wait=chatOpen()?3000:state==='menu'||state==='over'?30000:60000;
+function schedulePoll(){clearTimeout(chat.timer);const wait=chatOpen()?3000:state==='menu'||state==='over'?15000:60000;
   chat.timer=setTimeout(()=>{if(!document.hidden&&(chatOpen()||state!=='play'))pollChat();schedulePoll()},wait)}
 function showChat(){
   $('chat').classList.add('on');const ready=!!player.name;
   $('chatSetup').hidden=ready;$('chatMain').hidden=!ready;
   $('roomBtn').textContent='Name: '+player.name;$('roomBtn').hidden=!ready;
   if(!ready){$('chatNameIn').value='';$('setupErr').textContent='';return}
-  $('msgs').dataset.first='';renderMsgs();markSeen();pollChat();schedulePoll();
+  $('msgs').dataset.first='';renderMsgs();markSeen();pollChat();schedulePoll();iconBadgeOffer();
 }
-$('chatBtn').onclick=showChat;
+$('chatBtn').onclick=showChat;$('chatBtn2').onclick=showChat;
 $('chatClose').onclick=()=>{$('chat').classList.remove('on');$('msgIn').blur();schedulePoll()};
 $('roomBtn').onclick=()=>{$('chatSetup').hidden=false;$('chatMain').hidden=true;$('roomBtn').hidden=true;$('chatNameIn').value=player.name;$('setupErr').textContent=''};
 $('chatSetup').addEventListener('submit',e=>{e.preventDefault();
@@ -487,7 +494,7 @@ function showOver(){
   const fresh=THEMES.filter(t=>t.at>before&&t.at<=topBest());
   $('unlockMsg').hidden=!fresh.length;if(fresh.length)$('unlockMsg').textContent='New theme unlocked: '+fresh.map(t=>t.n).join(', ');
   $('final').textContent=score;$('bestOver').textContent=best;$('bestMenu').textContent=best;
-  $('rankMsg').hidden=true;$('nameForm').hidden=true;postRun(cfg.mode,score,elapsed);
+  $('rankMsg').hidden=true;$('nameForm').hidden=true;postRun(cfg.mode,score,elapsed);setTimeout(()=>pollChat(),400);
   $('over').classList.add('on');$('score').hidden=true;overShownAt=performance.now();if(window.__maybeReload)setTimeout(window.__maybeReload,1500);
 }
 let overShownAt=0;
@@ -644,12 +651,12 @@ function start(){ctx();musRestart();$('menu').classList.remove('on');$('over').c
   reset();state='play';$('score').hidden=false;$('pauseBtn').style.display='flex';last=performance.now()}
 function pause(){if(state!=='play')return;state='paused';$('pScore').textContent=score;$('paused').classList.add('on')}
 function resume(){$('paused').classList.remove('on');state='play';last=performance.now()}
-function toMenu(){if(window.__maybeReload)window.__maybeReload();renderSettings();state='menu';objs=[];parts=[];$('over').classList.remove('on');$('paused').classList.remove('on');$('menu').classList.add('on');$('score').hidden=true;$('pauseBtn').style.display='none';reset()}
+function toMenu(){setTimeout(()=>pollChat(),300);if(window.__maybeReload)window.__maybeReload();renderSettings();state='menu';objs=[];parts=[];$('over').classList.remove('on');$('paused').classList.remove('on');$('menu').classList.add('on');$('score').hidden=true;$('pauseBtn').style.display='none';reset()}
 $('playBtn').onclick=start;$('againBtn').onclick=start;$('resumeBtn').onclick=resume;$('quitBtn').onclick=toMenu;$('menuBtn').onclick=toMenu;
 $('pauseBtn').addEventListener('pointerdown',e=>{e.stopPropagation();pause()});
 // tap anywhere on the game-over screen (after a short guard so a panicked tap doesn't restart)
 $('over').addEventListener('pointerdown',e=>{if(e.target.closest('button,input,form,label'))return;if(performance.now()-overShownAt>500)start()});
-document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();try{ac&&ac.suspend()}catch(e){}}else if(ac){unlocked=false;ctx()}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden){pause();try{ac&&ac.suspend()}catch(e){}}else{if(ac){unlocked=false;ctx()}pollChat()}});
 // browsers only allow sound after a tap, so the menu music starts on your first touch
 for(const ev of ['pointerup','touchend','click','keydown'])document.addEventListener(ev,()=>{if(cfg.music||cfg.sound)ctx()},{passive:true});
 window.addEventListener('blur',pause);

@@ -45,7 +45,7 @@ The key in `index.html` is Supabase's *publishable* key, which is designed to be
 
 ## Chat
 
-One global chat for everyone playing, opened from the **Chat** button on the menu. You only enter your name (shared with the leaderboard). A badge shows unread messages. Messages disappear after 7 days, and each phone can send at most 5 messages per 10 seconds. While the chat is open it checks for new messages every 3 seconds; on the menu every 30 seconds; never during a run.
+One global chat for everyone playing, opened from the **Chat** button on the menu. You only enter your name (shared with the leaderboard). A red bubble on the Chat buttons (menu and game-over screen) shows unread messages, and the installed app can show the count on its home-screen icon. Messages disappear after 7 days, and each phone can send at most 5 messages per 10 seconds. While the chat is open it checks for new messages every 3 seconds; on the menu every 15 seconds and right after each run or when you reopen the app; never during a run.
 
 **One-time setup:** paste [`supabase/chat.sql`](supabase/chat.sql) into Supabase's **SQL Editor** and click **Run**. The messages table is locked, so the app can only read and post through two database functions.
 
