@@ -43,6 +43,12 @@ Scores are posted to a Supabase database. Each phone gets a random player ID, an
 
 The key in `index.html` is Supabase's *publishable* key, which is designed to be public. Never put the *secret* key in this repo.
 
+## Chat
+
+One global chat for everyone playing, opened from the **Chat** button on the menu. You only enter your name (shared with the leaderboard). A badge shows unread messages. Messages disappear after 7 days, and each phone can send at most 5 messages per 10 seconds. While the chat is open it checks for new messages every 3 seconds; on the menu every 30 seconds; never during a run.
+
+**One-time setup:** paste [`supabase/chat.sql`](supabase/chat.sql) into Supabase's **SQL Editor** and click **Run**. The messages table is locked, so the app can only read and post through two database functions.
+
 ## Install on your phone
 
 Open the Play link, then:

@@ -73,6 +73,22 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
 .lbList .sc{font-weight:700;font-variant-numeric:tabular-nums}
 .lbList .gap{justify-content:center;color:var(--muted);background:none!important;padding:0}
 .lbStatus{color:var(--muted);font-size:13px;margin:10px 0 12px;min-height:1em}
+.badged{position:relative}.badge{position:absolute;top:-6px;right:-6px;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:#ffd166;color:#141834;font-size:12px;font-weight:700;line-height:20px}
+.chatCard{display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
+.chatHead{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.roomBtn{border:1px solid rgba(255,255,255,.18);background:transparent;color:var(--muted);border-radius:10px;min-height:36px;padding:0 10px;font:600 13px "Chakra Petch",system-ui,sans-serif;cursor:pointer;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.roomBtn[hidden]{display:none}
+.chatNote{color:var(--muted);font-size:14px;margin:0 0 12px}
+.chatCard input{width:100%;min-height:44px;border-radius:11px;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.06);color:var(--ink);font:600 16px "Chakra Petch",system-ui,sans-serif;padding:0 12px;-webkit-user-select:text;user-select:text}
+.chatCard input:focus{outline:2px solid #fff;outline-offset:1px}
+#chatMain{display:flex;flex-direction:column;min-height:0;flex:1}
+#chatMain[hidden]{display:none}
+.msgs{flex:1;min-height:200px;max-height:52dvh;overflow-y:auto;-webkit-overflow-scrolling:touch;text-align:left;display:flex;flex-direction:column;gap:6px;padding:4px 2px;-webkit-user-select:text;user-select:text}
+.msg{max-width:82%;align-self:flex-start;background:rgba(255,255,255,.07);border-radius:14px 14px 14px 4px;padding:7px 11px;font-size:15px;line-height:1.35;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:rgba(47,212,224,.2);border-radius:14px 14px 4px 14px}
+.msg .who{display:block;font-size:12px;font-weight:700;color:#ffd166;margin-bottom:1px}.msg.me .who{display:none}
+.msg .when{font-size:11px;color:var(--muted);margin-left:8px;white-space:nowrap}
+.sendRow{display:flex;gap:6px}.sendRow input{flex:1}.sendRow .tog{flex:none;width:76px}
 .ver{color:var(--muted);font-size:12px;margin:12px 0 0;opacity:.7}
 .tiny{color:var(--muted);font-size:12px;margin:14px 0 0}
 @media (pointer:coarse){.tiny{display:none}}
@@ -102,7 +118,7 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
     <div class="row"><button class="tog" id="sndBtn">Sound</button><button class="tog" id="musBtn">Music</button><button class="tog" id="vibBtn">Vibrate</button></div>
     <p class="best"><span id="modeName">Hard</span> best <b id="bestMenu">0</b></p>
     <button class="btn" id="playBtn">Play</button>
-    <div class="row"><button class="tog on" id="lbBtn">Leaderboard</button></div>
+    <div class="row"><button class="tog on" id="lbBtn">Leaderboard</button><button class="tog on badged" id="chatBtn">Chat<span class="badge" id="chatBadge" hidden></span></button></div>
     <p class="ver" id="ver"></p>
     <p class="tiny">Keyboard: F / ← left car · J / → right car · Space pause</p>
   </div></div>
@@ -133,6 +149,23 @@ h2{margin:0 0 4px;font-size:32px;line-height:1.05}
     <div class="row"><button class="tog" id="lbNameBtn">Name</button><button class="tog on" id="lbClose">Close</button></div>
   </div></div>
 
+  <div class="ov" id="chat"><div class="card chatCard">
+    <div class="chatHead"><h2>Chat</h2><button class="roomBtn" id="roomBtn" type="button"></button></div>
+    <form class="nameForm" id="chatSetup" hidden>
+      <p class="chatNote">Everyone playing 2 Cars shares this chat. Messages disappear after 7 days.</p>
+      <label for="chatNameIn">Your name</label>
+      <input id="chatNameIn" maxlength="16" autocomplete="off" autocapitalize="words" spellcheck="false" placeholder="Name">
+      <p class="lbStatus" id="setupErr"></p>
+      <button class="btn" type="submit">Join chat</button>
+    </form>
+    <div id="chatMain" hidden>
+      <div class="msgs" id="msgs"></div>
+      <p class="lbStatus" id="chatStatus"></p>
+      <form class="sendRow" id="sendForm"><input id="msgIn" maxlength="300" autocomplete="off" placeholder="Message"><button class="tog on" type="submit">Send</button></form>
+    </div>
+    <div class="row"><button class="tog on" id="chatClose">Close</button></div>
+  </div></div>
+
   <div class="ov" id="paused"><div class="card">
     <h2>Paused</h2>
     <p class="sub">Score <b id="pScore">0</b></p>
@@ -157,7 +190,7 @@ let theme=THEMES[0];
 const th=()=>theme;
 const rgb=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)).join(',');
 const SPEEDS=[{n:'Instant',ms:45},{n:'Snappy',ms:85},{n:'Smooth',ms:140},{n:'Classic',ms:230},{n:'Relaxed',ms:320},{n:'Chill',ms:420}];
-const VERSION='2.4';
+const VERSION='2.5';
 const store={get(k,d){try{const v=localStorage.getItem('2cars.'+k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem('2cars.'+k,JSON.stringify(v))}catch(e){}}};
 const MODES=[{id:'easy',n:'Easy',d:'Dodge squares only'},{id:'hard',n:'Hard',d:'Catch circles + dodge'}];
 let cfg={music:store.get('music',true),theme:store.get('theme','night'),mode:store.get('mode','hard'),speed:Math.min(store.get('speed',2),5),sound:store.get('sound',true),vib:store.get('vib',true)};
@@ -225,6 +258,57 @@ async function openBoard(mode){
     $('lbStatus').textContent=rows.length?'Best score per player':'No scores yet. Be the first!';
   }catch(e){$('lbStatus').textContent=lbError(e)}
 }
+// ---- chat: one global chat for everyone playing (via the chat_fetch / chat_send functions) ----
+const chat={room:'global',last:0,msgs:[],seen:store.get('chatSeen',0),timer:null,busy:false,unread:0};
+const rpc=(fn,args)=>sb('rpc/'+fn,{method:'POST',body:JSON.stringify(args)}).then(r=>r.json());
+function chatOpen(){return $('chat').classList.contains('on')}
+function fmtTime(t){const d=new Date(t),now=new Date();const hm=d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  return d.toDateString()===now.toDateString()?hm:d.toLocaleDateString([],{weekday:'short'})+' '+hm}
+function renderMsgs(){
+  const box=$('msgs'),atBottom=box.scrollHeight-box.scrollTop-box.clientHeight<40;
+  box.innerHTML=chat.msgs.length?chat.msgs.map(m=>`<div class="msg${m.device===player.id?' me':''}"><span class="who">${esc(m.name)}</span>${esc(m.body)}<span class="when">${fmtTime(m.created_at)}</span></div>`).join('')
+    :'<p class="lbStatus" style="text-align:center;margin:auto">No messages yet. Say hi!</p>';
+  if(atBottom||box.dataset.first!=='1'){box.scrollTop=box.scrollHeight;box.dataset.first='1'}
+}
+async function pollChat(){
+  if(!chat.room||chat.busy)return;chat.busy=true;
+  try{const rows=await rpc('chat_fetch',{p_room:chat.room,p_after:chat.last});
+    if(rows.length){chat.msgs=chat.msgs.concat(rows).slice(-150);chat.last=rows[rows.length-1].id}
+    if(chatOpen()){renderMsgs();$('chatStatus').textContent='';markSeen()}
+    else{chat.unread=chat.msgs.filter(m=>m.id>chat.seen&&m.device!==player.id).length;updateBadge()}
+  }catch(e){if(chatOpen())$('chatStatus').textContent=chatError(e)}
+  finally{chat.busy=false}
+}
+function markSeen(){chat.seen=chat.last;store.set('chatSeen',chat.seen);chat.unread=0;updateBadge()}
+function updateBadge(){$('chatBadge').hidden=!chat.unread;$('chatBadge').textContent=chat.unread>9?'9+':chat.unread}
+function chatError(e){
+  if(navigator.onLine===false)return 'You\'re offline.';
+  if(e.code==='PGRST202'||e.status===404)return 'Chat isn\'t set up yet: run supabase/chat.sql in Supabase\'s SQL Editor.';
+  if(e.code==='P0001')return e.message||'Slow down a little.';
+  return lbError(e);
+}
+// check often while the chat is open, now and then on the menu (for the badge), never during a run
+function schedulePoll(){clearTimeout(chat.timer);const wait=chatOpen()?3000:state==='menu'||state==='over'?30000:60000;
+  chat.timer=setTimeout(()=>{if(!document.hidden&&(chatOpen()||state!=='play'))pollChat();schedulePoll()},wait)}
+function showChat(){
+  $('chat').classList.add('on');const ready=!!player.name;
+  $('chatSetup').hidden=ready;$('chatMain').hidden=!ready;
+  $('roomBtn').textContent='Name: '+player.name;$('roomBtn').hidden=!ready;
+  if(!ready){$('chatNameIn').value='';$('setupErr').textContent='';return}
+  $('msgs').dataset.first='';renderMsgs();markSeen();pollChat();schedulePoll();
+}
+$('chatBtn').onclick=showChat;
+$('chatClose').onclick=()=>{$('chat').classList.remove('on');$('msgIn').blur();schedulePoll()};
+$('roomBtn').onclick=()=>{$('chatSetup').hidden=false;$('chatMain').hidden=true;$('roomBtn').hidden=true;$('chatNameIn').value=player.name;$('setupErr').textContent=''};
+$('chatSetup').addEventListener('submit',e=>{e.preventDefault();
+  if(!setName($('chatNameIn').value)){$('setupErr').textContent='Pick a name (letters and numbers).';return}
+  document.activeElement&&document.activeElement.blur();showChat();flushScores()});
+$('sendForm').addEventListener('submit',async e=>{e.preventDefault();
+  const body=$('msgIn').value.trim();if(!body)return;$('msgIn').value='';
+  try{await rpc('chat_send',{p_room:chat.room,p_name:player.name,p_device:player.id,p_body:body});await pollChat();$('msgs').scrollTop=$('msgs').scrollHeight}
+  catch(err){$('msgIn').value=body;$('chatStatus').textContent=chatError(err)}});
+setTimeout(()=>{pollChat();schedulePoll()},1500);
+
 // say exactly what went wrong, so it can be fixed
 function lbError(e){
   if(navigator.onLine===false)return 'You\'re offline. Scores will post when you reconnect.';
